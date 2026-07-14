@@ -1,0 +1,13 @@
+# Rahasia — JANGAN pernah di-push
+.env
+
+# Virtual environment
+venv/
+
+# Cache Python
+__pycache__/
+*.pyc
+
+# Data lokal
+conversations/
+tool_calls.log
