@@ -92,6 +92,45 @@ def make_chart(window_start: int = 0, window_end: int = 500) -> str:
     fig.savefig("chart_output.png", dpi=80)
     plt.close(fig)
     return "Chart tersimpan sebagai chart_output.png"
+# =========================================================================
+# TOOLS MACHINE LEARNING — tambahkan blok ini ke server.py yang sudah ada,
+# SETELAH tool sensor (analyze_sensors dll) dan SEBELUM baris `if __name__`.
+# =========================================================================
+import sensor_ml as ml
+
+@mcp.tool()
+def forecast_sensor(sensor: str, steps_ahead: int = 10) -> str:
+    """Prediksi nilai sebuah sensor beberapa detik ke depan menggunakan model
+    Random Forest. Argumen: nama sensor (mis. 'sensor_A') dan berapa detik ke depan.
+    Gunakan saat user bertanya 'prediksi', 'ramalkan', atau 'nilai ke depan'."""
+    log(f"[forecast_sensor] sensor={sensor} steps={steps_ahead}")
+    return json.dumps(ml.forecast_sensor(sensor, steps_ahead), indent=2, default=str)
+
+@mcp.tool()
+def detect_anomalies(contamination: float = 0.02) -> str:
+    """Deteksi pembacaan sensor yang tidak normal (anomali) menggunakan
+    IsolationForest, tanpa threshold manual. Gunakan saat user bertanya soal
+    'anomali', 'pembacaan aneh', atau 'ada yang tidak normal?'."""
+    log(f"[detect_anomalies] contamination={contamination}")
+    return json.dumps(ml.detect_anomalies(contamination), indent=2, default=str)
+
+@mcp.tool()
+def predict_failure(sensor: str, horizon: int = 5) -> str:
+    """Prediksi apakah sebuah sensor akan MATI dalam beberapa detik ke depan
+    menggunakan model klasifikasi (peringatan dini). Argumen: nama sensor dan
+    horizon detik. Gunakan saat user bertanya 'apakah sensor akan gagal/mati'."""
+    log(f"[predict_failure] sensor={sensor} horizon={horizon}")
+    return json.dumps(ml.predict_failure(sensor, horizon), indent=2, default=str)
+
+@mcp.tool()
+def forecast_chart(sensor: str, steps_ahead: int = 20) -> str:
+    """Buat GRAFIK prediksi vs aktual untuk sebuah sensor dan simpan ke
+    forecast_output.png. Grafik menampilkan data aktual, prediksi model pada
+    data yang diketahui (untuk menilai akurasi), dan ramalan ke depan.
+    Gunakan saat user minta 'grafik prediksi', 'chart forecast', atau
+    'tampilkan prediksi sensor secara visual'."""
+    log(f"[forecast_chart] sensor={sensor} steps={steps_ahead}")
+    return json.dumps(ml.forecast_chart(sensor, steps_ahead), indent=2, default=str)
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")
