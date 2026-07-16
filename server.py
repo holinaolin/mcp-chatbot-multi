@@ -150,7 +150,13 @@ def execute_python(code: str) -> str:
     Data sensor tersedia sebagai DataFrame pandas `df`
     (kolom: timestamp, sensor_A, sensor_B, sensor_C, sensor_D).
     pandas=`pd`, numpy=`np`. WAJIB pakai print() untuk menampilkan hasil.
-    Library yang boleh: pandas, numpy, sklearn, scipy, math, statistics, matplotlib, json, datetime.
+    Library yang boleh: pandas, numpy, sklearn, scipy, math, statistics,
+    matplotlib, json, datetime, joblib.
+
+    PENTING untuk grafik: kalau membuat plot/grafik, WAJIB simpan ke file
+    bernama 'chart_output.png' dengan plt.savefig('chart_output.png').
+    Jangan pakai nama file lain, dan jangan panggil plt.show() —
+    supaya grafik otomatis tampil di chat.
 
     Contoh:
         from sklearn.linear_model import LinearRegression
