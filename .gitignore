@@ -12,4 +12,10 @@ __pycache__/
 conversations/
 tool_calls.log
 
+models/
+forecast_output.png
+forecast_*.png
 chart_output.png
+chart_*.png
+
+sensor_data.txt
