@@ -11,6 +11,7 @@ Ganti nanti:
 """
 import os
 import pandas as pd
+import numpy as np
 
 # Konfigurasi sumber data. Nanti bisa diganti lewat env var / config.
 DATA_SOURCE = os.environ.get("SENSOR_DATA_SOURCE", "file")
@@ -52,11 +53,31 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
     if "timestamp" not in df.columns:
         raise ValueError("Data tidak punya kolom 'timestamp'.")
 
-    # urutkan berdasarkan waktu (data DB belum tentu terurut)
+    scols = [c for c in df.columns if c.startswith("sensor_")]
+
+    # 1. buang baris yang timestamp-nya kosong
+    df = df.dropna(subset=["timestamp"])
+
+    # 2. buang duplikat timestamp (ambil yang pertama)
+    df = df.drop_duplicates(subset=["timestamp"], keep="first")
+
+    # 3. urutkan berdasarkan waktu (data DB / tak urut → dibetulkan)
     df = df.sort_values("timestamp").reset_index(drop=True)
 
-    # buang baris yang timestamp-nya kosong
-    df = df.dropna(subset=["timestamp"])
+    # 4. nilai negatif mustahil pada sensor → jadikan NaN (bukan "mati")
+    for c in scols:
+        df.loc[df[c] < 0, c] = np.nan
+
+    # 5. lonjakan ekstrem (outlier) → jadikan NaN, deteksi pakai IQR
+    for c in scols:
+        q1, q3 = df[c].quantile(0.25), df[c].quantile(0.75)
+        iqr = q3 - q1
+        upper = q3 + 5 * iqr        # ambang longgar; hanya spike ekstrem
+        df.loc[df[c] > upper, c] = np.nan
+
+    # 6. isi nilai hilang: interpolasi linear lalu isi sisa di tepi
+    for c in scols:
+        df[c] = df[c].interpolate(method="linear", limit_direction="both")
 
     return df
 
@@ -75,7 +96,7 @@ def sensor_columns(df: pd.DataFrame) -> list[str]:
 
 
 def data_summary() -> dict:
-    """Ringkasan cepat sumber data yang berguna untuk diagnostik & sanity check."""
+    """Ringkasan cepat sumber data — berguna untuk diagnostik & sanity check."""
     df = get_sensor_data()
     cols = sensor_columns(df)
     return {
