@@ -1,6 +1,7 @@
 # providers/claude.py
 from anthropic import Anthropic
-from providers.base import LLMProvider, ProviderResult, ToolCall
+from providers.base import (LLMProvider, ProviderResult, ToolCall,
+                            SUGGEST_INSTRUCTION, parse_suggestions)
 
 class ClaudeProvider(LLMProvider):
     def __init__(self, model="claude-sonnet-4-6"):
@@ -18,10 +19,10 @@ class ClaudeProvider(LLMProvider):
     def build_system(self, system_prompt):
         self.system_prompt = system_prompt
 
-    async def complete(self, history, tools) -> ProviderResult:
+    async def complete(self, history, tools):
         resp = self.client.messages.create(
             model=self.model,
-            max_tokens=1024,
+            max_tokens=4096,
             system=self.system_prompt,
             tools=tools,
             messages=history,
@@ -31,7 +32,6 @@ class ClaudeProvider(LLMProvider):
             ToolCall(id=b.id, name=b.name, arguments=b.input)
             for b in resp.content if b.type == "tool_use"
         ]
-        # Simpan content sebagai list dict JSON-able (bukan objek SDK)
         serializable = []
         for b in resp.content:
             if b.type == "text":
@@ -42,6 +42,20 @@ class ClaudeProvider(LLMProvider):
                     "name": b.name, "input": b.input,
                 })
         return ProviderResult(text=text, tool_calls=calls, raw_assistant_msg=serializable)
+
+    async def suggest_followups(self, history):
+        """Panggilan terpisah tanpa tools: minta 3 pertanyaan lanjutan."""
+        try:
+            msgs = history + [{"role": "user", "content": SUGGEST_INSTRUCTION}]
+            resp = self.client.messages.create(
+                model=self.model,
+                max_tokens=256,
+                messages=msgs,
+            )
+            text = "".join(b.text for b in resp.content if b.type == "text")
+            return parse_suggestions(text)
+        except Exception:
+            return []
 
     def append_user(self, history, text):
         history.append({"role": "user", "content": text})
