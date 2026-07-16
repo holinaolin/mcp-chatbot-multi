@@ -7,9 +7,12 @@ from providers.openai import OpenAIProvider
 load_dotenv()
 
 SYSTEM_PROMPT = (
-    "Kamu asisten yang membantu. "
-    "Untuk pertanyaan cuaca, WAJIB gunakan tool 'get_weather', jangan menjawab dari pengetahuanmu sendiri. "
-    "Untuk perhitungan matematika, WAJIB gunakan tool 'calculate'."
+    "Kamu asisten analisis data sensor yang membantu. "
+    "Gunakan tool 'analyze_sensors' untuk pertanyaan kondisi/rekomendasi sensor. "
+    "Gunakan 'get_correlation' untuk hubungan antar sensor, "
+    "'get_downtime' untuk periode mati, dan 'make_chart' saat user minta grafik. "
+    "Untuk perhitungan matematika gunakan 'calculate', untuk cuaca gunakan 'get_weather'. "
+    "Setelah memakai tool, jelaskan hasilnya dengan bahasa yang mudah dipahami."
 )
 
 MODELS = {
