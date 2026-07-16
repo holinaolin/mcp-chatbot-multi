@@ -8,11 +8,9 @@ load_dotenv()
 
 SYSTEM_PROMPT = (
     "Kamu asisten analisis data sensor yang membantu. "
-    "Gunakan tool 'analyze_sensors' untuk pertanyaan kondisi/rekomendasi sensor. "
-    "Gunakan 'get_correlation' untuk hubungan antar sensor, "
-    "'get_downtime' untuk periode mati, dan 'make_chart' saat user minta grafik. "
-    "Untuk perhitungan matematika gunakan 'calculate', untuk cuaca gunakan 'get_weather'. "
-    "Setelah memakai tool, jelaskan hasilnya dengan bahasa yang mudah dipahami."
+    "Gunakan tool yang tersedia sesuai kebutuhan, lalu jelaskan hasilnya "
+    "dengan bahasa yang mudah dipahami. Jangan menutup jawaban dengan basa-basi "
+    "seperti 'Jika ada hal lain yang bisa saya bantu, beri tahu saya'."
 )
 
 MODELS = {
@@ -24,14 +22,13 @@ class ChatAgent:
     def __init__(self):
         self.bridge = MCPBridge()
         self.raw_tools = []
-        self._provider_cache = {}   # model_name -> instance provider (+ tools)
+        self._provider_cache = {}
 
     async def start(self):
         await self.bridge.connect()
         self.raw_tools = await self.bridge.list_tools_raw()
 
     def _get_provider(self, model_name: str):
-        """Cache satu provider per model (tools sudah diformat)."""
         if model_name not in self._provider_cache:
             provider = MODELS[model_name]()
             provider.build_system(SYSTEM_PROMPT)
@@ -39,9 +36,8 @@ class ChatAgent:
             self._provider_cache[model_name] = (provider, tools)
         return self._provider_cache[model_name]
 
-    async def send(self, conv: dict, user_msg: str) -> str:
-        """Proses satu giliran chat pada percakapan `conv`.
-        Memutakhirkan conv['provider_history'] secara in-place."""
+    async def send(self, conv: dict, user_msg: str):
+        """Proses satu giliran chat. Mengembalikan (teks_jawaban, list_saran)."""
         provider, tools = self._get_provider(conv["model_name"])
         history = conv["provider_history"]
 
@@ -52,7 +48,9 @@ class ChatAgent:
             provider.append_assistant(history, result)
 
             if not result.tool_calls:
-                return result.text
+                # jawaban utama selesai; minta saran lanjutan (panggilan terpisah)
+                suggestions = await provider.suggest_followups(history)
+                return result.text, suggestions
 
             executed = []
             for call in result.tool_calls:
