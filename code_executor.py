@@ -25,7 +25,7 @@ import data_source
 
 ALLOWED_IMPORTS = {
     "pandas", "numpy", "sklearn", "scipy", "math", "statistics",
-    "matplotlib", "json", "datetime",
+    "matplotlib", "json", "datetime", "joblib", "imblearn"
 }
 
 BLOCKED_PATTERNS = [
