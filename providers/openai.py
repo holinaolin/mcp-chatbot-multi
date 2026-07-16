@@ -1,7 +1,8 @@
 # providers/openai.py
 import json
 from openai import OpenAI
-from providers.base import LLMProvider, ProviderResult, ToolCall
+from providers.base import (LLMProvider, ProviderResult, ToolCall,
+                            SUGGEST_INSTRUCTION, parse_suggestions)
 
 class OpenAIProvider(LLMProvider):
     def __init__(self, model="gpt-4o"):
@@ -27,8 +28,7 @@ class OpenAIProvider(LLMProvider):
     def build_system(self, system_prompt):
         self.system_prompt = system_prompt
 
-    async def complete(self, history, tools) -> ProviderResult:
-        # OpenAI menaruh system sebagai pesan pertama
+    async def complete(self, history, tools):
         messages = [{"role": "system", "content": self.system_prompt}] + history
         resp = self.client.chat.completions.create(
             model=self.model,
@@ -49,6 +49,21 @@ class OpenAIProvider(LLMProvider):
             tool_calls=calls,
             raw_assistant_msg=msg.model_dump(exclude_none=True),
         )
+
+    async def suggest_followups(self, history):
+        """Panggilan terpisah tanpa tools: minta 3 pertanyaan lanjutan."""
+        try:
+            messages = ([{"role": "system", "content": self.system_prompt}]
+                        + history
+                        + [{"role": "user", "content": SUGGEST_INSTRUCTION}])
+            resp = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                max_tokens=256,
+            )
+            return parse_suggestions(resp.choices[0].message.content or "")
+        except Exception:
+            return []
 
     def append_user(self, history, text):
         history.append({"role": "user", "content": text})
