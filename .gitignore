@@ -11,3 +11,5 @@ __pycache__/
 # Data lokal
 conversations/
 tool_calls.log
+
+chart_output.png
