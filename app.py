@@ -11,7 +11,6 @@ import store
 
 st.set_page_config(page_title="MCP Chatbot Multi-Sesi", page_icon="🤖")
 
-# File chart yang mungkin dihasilkan tool: (nama_file_sumber, caption)
 CHART_SOURCES = [
     ("chart_output.png", "Grafik data sensor"),
     ("forecast_output.png", "Grafik prediksi vs aktual"),
@@ -94,7 +93,7 @@ else:
 
 st.caption(f"Model: **{conv['model_name']}**")
 
-# Render riwayat pesan (termasuk chart bila pesan punya gambar)
+# Render riwayat pesan
 for m in conv["messages"]:
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
@@ -102,8 +101,24 @@ for m in conv["messages"]:
             if os.path.exists(img["file"]):
                 st.image(img["file"], caption=img.get("caption", ""))
 
-# Input
-if prompt := st.chat_input("Tanya sesuatu..."):
+# --- Tombol saran dari pesan assistant terakhir ---
+last_suggestions = []
+if conv["messages"] and conv["messages"][-1]["role"] == "assistant":
+    last_suggestions = conv["messages"][-1].get("suggestions", [])
+
+if last_suggestions:
+    st.caption("💡 Pertanyaan lanjutan:")
+    cols = st.columns(len(last_suggestions))
+    for i, sug in enumerate(last_suggestions):
+        if cols[i].button(sug, key=f"sug_{active_id}_{len(conv['messages'])}_{i}"):
+            st.session_state.pending_prompt = sug
+            st.rerun()
+
+# --- Input: kotak ketik ATAU tombol saran ---
+typed = st.chat_input("Tanya sesuatu...")
+prompt = st.session_state.pop("pending_prompt", None) or typed
+
+if prompt:
     conv["messages"].append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -112,16 +127,14 @@ if prompt := st.chat_input("Tanya sesuatu..."):
         conv["title"] = (prompt[:40] + "…") if len(prompt) > 40 else prompt
 
     with st.chat_message("assistant"):
-        # catat waktu modifikasi tiap file chart SEBELUM agent jalan
         before = {
             src: (os.path.getmtime(src) if os.path.exists(src) else 0)
             for src, _ in CHART_SOURCES
         }
         with st.spinner(f"{conv['model_name']} berpikir..."):
-            reply = loop.run_until_complete(agent.send(conv, prompt))
+            reply, suggestions = loop.run_until_complete(agent.send(conv, prompt))
         st.markdown(reply)
 
-        # cek tiap sumber chart: kalau baru diperbarui, salin ke nama unik & tampilkan
         new_images = []
         for src, caption in CHART_SOURCES:
             if os.path.exists(src) and os.path.getmtime(src) > before[src]:
@@ -133,6 +146,8 @@ if prompt := st.chat_input("Tanya sesuatu..."):
     msg = {"role": "assistant", "content": reply}
     if new_images:
         msg["images"] = new_images
+    if suggestions:
+        msg["suggestions"] = suggestions
     conv["messages"].append(msg)
     store.save(conv)
     st.rerun()
