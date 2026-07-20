@@ -169,5 +169,50 @@ def execute_python(code: str) -> str:
     return json.dumps({"berhasil": result["ok"], "output": result["output"]},
                       indent=2, default=str)
 
+# ===== Tool PABRIK MODEL plug-and-play — tambahkan ke server.py =====
+import model_factory as mf
+
+@mcp.tool()
+def list_ml_catalog() -> str:
+    """Tampilkan katalog task dan algoritma ML yang tersedia untuk dilatih.
+    Panggil ini saat user bertanya 'model/algoritma apa saja yang bisa dipakai'."""
+    log("[list_ml_catalog] dipanggil")
+    return json.dumps(mf.catalog(), indent=2, default=str)
+
+@mcp.tool()
+def train_model(target_sensor: str, task: str,
+                algorithm: str = "random_forest", horizon: int = 10) -> str:
+    """Latih model ML plug-and-play sesuai spesifikasi, lalu simpan untuk dipakai ulang.
+
+    Argumen:
+      target_sensor: sensor yang jadi fokus (mis. 'sensor_A')
+      task: 'forecast' (prediksi nilai), 'outage' (prediksi sensor mati),
+            atau 'anomaly' (deteksi pembacaan aneh)
+      algorithm: 'linear_regression', 'random_forest', atau 'logistic_regression'
+                 (untuk anomaly, argumen ini diabaikan)
+      horizon: berapa detik ke depan (untuk task outage/forecast)
+
+    Contoh: deteksi outage sensor_A 10 detik ke depan dengan linear regression →
+      train_model('sensor_A', 'outage', 'random_forest', 10)
+    Mengembalikan metrik akurasi dan kunci model (model_key) untuk dipakai prediksi.
+    Panggil list_ml_catalog dulu kalau ragu task/algoritma yang tersedia."""
+    log(f"[train_model] {target_sensor} {task} {algorithm} h{horizon}")
+    return json.dumps(mf.train_model(target_sensor, task, algorithm, horizon),
+                      indent=2, default=str)
+
+@mcp.tool()
+def predict_with_model(model_key: str) -> str:
+    """Pakai model yang SUDAH dilatih untuk memprediksi atas data terbaru.
+    Argumen model_key didapat dari hasil train_model.
+    Ini bagian plug-and-play: tinggal ambil data terkini dan prediksi."""
+    log(f"[predict_with_model] {model_key}")
+    return json.dumps(mf.predict_with_model(model_key), indent=2, default=str)
+
+@mcp.tool()
+def list_trained_models() -> str:
+    """Daftar semua model ML yang sudah dilatih dan tersimpan (siap dipakai)."""
+    log("[list_trained_models] dipanggil")
+    return json.dumps(mf.list_trained_models(), indent=2, default=str)
+
 if __name__ == "__main__":
     mcp.run(transport="stdio")
